@@ -487,6 +487,6 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 
 
 
-app.listen(PORT, HOSTNAME, () => {
-    console.log(`IP: http://${HOSTNAME}:${PORT}`);
+app.listen(PORT, () => {
+    console.log(`IP: https://${HOSTNAME}:${PORT}`);
 });
