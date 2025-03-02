@@ -23,13 +23,6 @@ app.use(cookieParser());
 // az images mappában lévő fájlok elérése
 app.use("/images", express.static(path.join(__dirname, "images")));
 
-const connection = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "", 
-    database: "buyit"
-});
-
 dotenv.config();
 const PORT = process.env.PORT;
 const HOSTNAME = process.env.HOSTNAME;
@@ -101,7 +94,7 @@ function authenticateToken(req, res, next) {
 app.get("/api/getProducts", (req, res) => {
     const sql = "SELECT * FROM products";
 
-    connection.query(sql, (error, results) => {
+    pool.query(sql, (error, results) => {
         if (error) {
             console.error("Error fetching products:", error);
             res.status(500).json({ error: "Internal Server Error" });
