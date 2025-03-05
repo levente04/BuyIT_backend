@@ -104,6 +104,19 @@ app.get("/api/getProducts", (req, res) => {
     });
 });
 
+app.get("/api/getPhones", (req, res) => {
+    const sql = "SELECT * FROM products WHERE itemCategory = 'Mobiltelefon'";
+
+    connection.query(sql, (error, results) => {
+        if (error) {
+            console.error("Error fetching products:", error);
+            res.status(500).json({ error: "Internal Server Error" });
+            return;
+        }
+        res.json(results);
+    });
+});
+
 app.get('/api/search', async (req, res) => {
     const searchTerm = req.query.q;
     if (!searchTerm) {
