@@ -105,7 +105,7 @@ app.get("/api/getProducts", (req, res) => {
 });
 
 app.get("/api/getPhones", (req, res) => {
-    const sql = "SELECT * FROM products";
+    const sql = "SELECT * FROM products WHERE itemCategory = 'Mobiltelefon'";
 
     connection.query(sql, (error, results) => {
         if (error) {
