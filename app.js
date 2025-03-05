@@ -119,28 +119,21 @@ app.get("/api/getPhones", (req, res) => {
 
 app.get('/api/search', async (req, res) => {
     const searchTerm = req.query.q;
-
     if (!searchTerm) {
-        return res.status(400).json({ error: "Search term is required" });
+        return res.status(400).json({ message: 'Search query is required' });
     }
 
     try {
-        const query = 'SELECT * FROM products WHERE itemName LIKE ?';
-        const values = [`%${searchTerm}%`];
+        const query = `SELECT * FROM products WHERE itemName LIKE ?`;
+        const results = await db.query(query, [`%${searchTerm}%`]);
 
-        db.execute(query, values, (err, results) => {
-            if (err) {
-                console.error("Error querying database:", err);
-                return res.status(500).json({ error: "Internal server error" });
-            }
-
-            res.json(results); // Send the search results back
-        });
+        res.json(results); // Return search results
     } catch (error) {
-        console.error("Error processing search:", error);
-        res.status(500).json({ error: "Internal server error" });
+        console.error("Error fetching search results:", error);
+        res.status(500).json({ message: 'Error fetching search results' });
     }
 });
+
 
 
 
