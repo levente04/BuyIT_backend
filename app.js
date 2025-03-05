@@ -15,11 +15,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended:true }));
 app.use(cors({
-<<<<<<< HEAD
-    origin: [buyit2.netlify.app],
-=======
     origin: ['http://127.0.0.1:5500', 'http://localhost:5500'], 
->>>>>>> cbee9641d07a892f7785e34385c3ff4483166102
     credentials: true
 }));
 app.use(cookieParser());
@@ -108,7 +104,6 @@ app.get("/api/getProducts", (req, res) => {
     });
 });
 
-<<<<<<< HEAD
 app.get("/api/getPhones", (req, res) => {
     const sql = "SELECT * FROM products WHERE itemCategory = 'Mobiltelefon'";
 
@@ -122,7 +117,6 @@ app.get("/api/getPhones", (req, res) => {
     });
 });
 
-=======
 app.get('/api/search', async (req, res) => {
     const searchTerm = req.query.q;
 
@@ -151,7 +145,6 @@ app.get('/api/search', async (req, res) => {
 
 
 
->>>>>>> cbee9641d07a892f7785e34385c3ff4483166102
 app.get('/api/getRole', authenticateToken, (req, res) => {
 
     const userRole = req.users.role;
