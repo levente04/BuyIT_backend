@@ -104,25 +104,25 @@ app.get("/api/getProducts", (req, res) => {
     });
 });
 
-app.get('/api/search', async (req, res) => {
-    const searchQuery = req.query.q; // Get search term from query parameter
+app.get("/api/search", async (req, res) => {
+    const searchTerm = req.query.q;
 
-    if (!searchQuery) {
+    if (!searchTerm) {
         return res.status(400).json({ error: "No search term provided" });
     }
 
     try {
-        const [results] = await db.execute(
-            "SELECT * FROM products WHERE itemName LIKE ?",
-            [`%${searchQuery}%`]  // Wildcard search for partial matches
-        );
+        const query = "SELECT * FROM products WHERE itemName LIKE ?";
+        const values = [`%${searchTerm}%`];
 
+        const [results] = await db.execute(query, values);
         res.json(results);
     } catch (error) {
-        console.error("Search error:", error);
-        res.status(500).json({ error: "Database error" });
+        console.error("Database search error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 
 app.get('/api/getRole', authenticateToken, (req, res) => {
