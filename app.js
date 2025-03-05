@@ -104,24 +104,28 @@ app.get("/api/getProducts", (req, res) => {
     });
 });
 
-app.get("/api/search", async (req, res) => {
+app.get('/api/search', async (req, res) => {
     const searchTerm = req.query.q;
 
     if (!searchTerm) {
-        return res.status(400).json({ error: "No search term provided" });
+        return res.status(400).json({ error: "Search term is required" });
     }
 
     try {
-        const query = "SELECT * FROM products WHERE itemName LIKE ?";
+        const query = 'SELECT * FROM products WHERE itemName LIKE ?';
         const values = [`%${searchTerm}%`];
 
-        const [results] = await db.execute(query, values); // Ensure `db` is correctly configured
-        console.log("Search results:", results); // Debugging log
+        db.execute(query, values, (err, results) => {
+            if (err) {
+                console.error("Error querying database:", err);
+                return res.status(500).json({ error: "Internal server error" });
+            }
 
-        res.json(results);
+            res.json(results); // Send the search results back
+        });
     } catch (error) {
-        console.error("Database search error:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error("Error processing search:", error);
+        res.status(500).json({ error: "Internal server error" });
     }
 });
 
