@@ -1,6 +1,6 @@
 const express = require('express');
 const mysql = require('mysql2');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -15,7 +15,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended:true }));
 app.use(cors({
-    origin: ['http://127.0.0.1:5500', 'http://localhost:5500'],
+    origin: [buyit2.netlify.app],
     credentials: true
 }));
 app.use(cookieParser());
@@ -99,6 +99,19 @@ function authenticateToken(req, res, next) {
 // API végpontok
 app.get("/api/getProducts", (req, res) => {
     const sql = "SELECT * FROM products";
+
+    connection.query(sql, (error, results) => {
+        if (error) {
+            console.error("Error fetching products:", error);
+            res.status(500).json({ error: "Internal Server Error" });
+            return;
+        }
+        res.json(results);
+    });
+});
+
+app.get("/api/getPhones", (req, res) => {
+    const sql = "SELECT * FROM products WHERE itemCategory = 'Mobiltelefon'";
 
     connection.query(sql, (error, results) => {
         if (error) {
