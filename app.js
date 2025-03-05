@@ -115,13 +115,16 @@ app.get("/api/search", async (req, res) => {
         const query = "SELECT * FROM products WHERE itemName LIKE ?";
         const values = [`%${searchTerm}%`];
 
-        const [results] = await db.execute(query, values);
+        const [results] = await db.execute(query, values); // Ensure `db` is correctly configured
+        console.log("Search results:", results); // Debugging log
+
         res.json(results);
     } catch (error) {
         console.error("Database search error:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 
 
