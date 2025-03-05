@@ -104,6 +104,27 @@ app.get("/api/getProducts", (req, res) => {
     });
 });
 
+app.get('/api/search', async (req, res) => {
+    const searchQuery = req.query.q; // Get search term from query parameter
+
+    if (!searchQuery) {
+        return res.status(400).json({ error: "No search term provided" });
+    }
+
+    try {
+        const [results] = await db.execute(
+            "SELECT * FROM products WHERE itemName LIKE ?",
+            [`%${searchQuery}%`]  // Wildcard search for partial matches
+        );
+
+        res.json(results);
+    } catch (error) {
+        console.error("Search error:", error);
+        res.status(500).json({ error: "Database error" });
+    }
+});
+
+
 app.get('/api/getRole', authenticateToken, (req, res) => {
 
     const userRole = req.users.role;
