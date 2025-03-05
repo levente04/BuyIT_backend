@@ -117,23 +117,53 @@ app.get("/api/getPhones", (req, res) => {
     });
 });
 
-app.get('/api/search', async (req, res) => {
-    const searchTerm = req.query.q;
-    if (!searchTerm) {
-        return res.status(400).json({ message: 'Search query is required' });
+app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
+    const searchQuery = req.params.searchQuery;
+    console.log(searchQuery);
+
+    if (!searchQuery) {
+        return res.status(400).json({ error: 'Search query is required' });
     }
 
-    try {
-        const query = `SELECT * FROM products WHERE itemName LIKE ?`;
-        const results = await db.query(query, [`%${searchTerm}%`]);
-
-        res.json(results); // Return search results
-    } catch (error) {
-        console.error("Error fetching search results:", error);
-        res.status(500).json({ message: 'Error fetching search results' });
-    }
+    const sqlQuery = `
+    SELECT p.* 
+    FROM products p
+    JOIN categories c ON p.category_id = c.category_id
+    WHERE p.name LIKE ? 
+       OR p.description LIKE ? 
+       OR p.pic LIKE ?
+       OR p.Jelátvitel LIKE ?
+       OR p.Max_működési_idő LIKE ?
+       OR p.Hordhatósági_változatok LIKE ?
+       OR p.Termék_típusa LIKE ?
+       OR p.Kivitel LIKE ?
+       OR p.Bluetooth_verzió LIKE ?
+       OR p.Hangszóró_meghajtók LIKE ?
+       OR p.Szín LIKE ?
+       OR p.Csatlakozók LIKE ?
+       OR p.Bluetooth LIKE ?
+       OR p.Frekvenciaátvitel LIKE ?
+       OR p.Érzékenység LIKE ?
+       OR c.name LIKE ? 
+       OR c.description LIKE ?
+       `;
+       const values = [
+        `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
+        `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
+        `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
+        `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
+        `%${searchQuery}%`, `%${searchQuery}%`
+    ];
+    
+    pool.query(sqlQuery, values, (err, results) => {
+        if (err) {
+            console.log(err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        console.log(results);
+        res.json(results);
+    });
 });
-
 
 
 
