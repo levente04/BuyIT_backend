@@ -15,7 +15,11 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended:true }));
 app.use(cors({
+<<<<<<< HEAD
     origin: [buyit2.netlify.app],
+=======
+    origin: ['http://127.0.0.1:5500', 'http://localhost:5500'], 
+>>>>>>> cbee9641d07a892f7785e34385c3ff4483166102
     credentials: true
 }));
 app.use(cookieParser());
@@ -23,19 +27,13 @@ app.use(cookieParser());
 // az images mappában lévő fájlok elérése
 app.use("/images", express.static(path.join(__dirname, "images")));
 
-const connection = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "", 
-    database: "buyit"
-});
-
 dotenv.config();
 const PORT = process.env.PORT;
 const HOSTNAME = process.env.HOSTNAME;
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
@@ -100,7 +98,7 @@ function authenticateToken(req, res, next) {
 app.get("/api/getProducts", (req, res) => {
     const sql = "SELECT * FROM products";
 
-    connection.query(sql, (error, results) => {
+    pool.query(sql, (error, results) => {
         if (error) {
             console.error("Error fetching products:", error);
             res.status(500).json({ error: "Internal Server Error" });
@@ -110,6 +108,7 @@ app.get("/api/getProducts", (req, res) => {
     });
 });
 
+<<<<<<< HEAD
 app.get("/api/getPhones", (req, res) => {
     const sql = "SELECT * FROM products WHERE itemCategory = 'Mobiltelefon'";
 
@@ -123,6 +122,36 @@ app.get("/api/getPhones", (req, res) => {
     });
 });
 
+=======
+app.get('/api/search', async (req, res) => {
+    const searchTerm = req.query.q;
+
+    if (!searchTerm) {
+        return res.status(400).json({ error: "Search term is required" });
+    }
+
+    try {
+        const query = 'SELECT * FROM products WHERE itemName LIKE ?';
+        const values = [`%${searchTerm}%`];
+
+        db.execute(query, values, (err, results) => {
+            if (err) {
+                console.error("Error querying database:", err);
+                return res.status(500).json({ error: "Internal server error" });
+            }
+
+            res.json(results); // Send the search results back
+        });
+    } catch (error) {
+        console.error("Error processing search:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+
+
+
+>>>>>>> cbee9641d07a892f7785e34385c3ff4483166102
 app.get('/api/getRole', authenticateToken, (req, res) => {
 
     const userRole = req.users.role;
@@ -500,6 +529,6 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 
 
 
-app.listen(PORT, HOSTNAME, () => {
-    console.log(`IP: http://${HOSTNAME}:${PORT}`);
+app.listen(PORT, () => {
+    console.log(`IP: https://${HOSTNAME}:${PORT}`);
 });
