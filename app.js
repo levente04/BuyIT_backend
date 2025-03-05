@@ -126,26 +126,9 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
     }
 
     const sqlQuery = `
-    SELECT p.* 
-    FROM products p
-    JOIN categories c ON p.category_id = c.category_id
-    WHERE p.name LIKE ? 
-       OR p.description LIKE ? 
-       OR p.pic LIKE ?
-       OR p.Jelátvitel LIKE ?
-       OR p.Max_működési_idő LIKE ?
-       OR p.Hordhatósági_változatok LIKE ?
-       OR p.Termék_típusa LIKE ?
-       OR p.Kivitel LIKE ?
-       OR p.Bluetooth_verzió LIKE ?
-       OR p.Hangszóró_meghajtók LIKE ?
-       OR p.Szín LIKE ?
-       OR p.Csatlakozók LIKE ?
-       OR p.Bluetooth LIKE ?
-       OR p.Frekvenciaátvitel LIKE ?
-       OR p.Érzékenység LIKE ?
-       OR c.name LIKE ? 
-       OR c.description LIKE ?
+    SELECT * 
+    FROM products
+    WHERE products.itemName LIKE ?
        `;
        const values = [
         `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
