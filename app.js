@@ -171,7 +171,7 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
 });
 
 app.get('/api/admin/users', (req, res) => {
-    db.query('SELECT * FROM users', (err, results) => {
+    pool.query('SELECT * FROM users', (err, results) => {
         if (err) return res.status(500).json({ error: 'Database error' });
         res.json(results);
     });
