@@ -170,13 +170,19 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
     });
 });
 
-app.get("/api/getUsers", (req, res) => {
-    db.query("SELECT user_id, name, email FROM users", (err, results) => {
+app.get('/api/getUsers',(req, res) => {
+    const user_id = req.users.id;
+
+    const sql = `
+        SELECT  user_id, name, email FROM users
+    `;
+
+    pool.query(sql, [user_id], (err, result) => {
         if (err) {
-            res.status(500).json({ error: "Database error" });
-            return;
+            return res.status(500).json({ error: 'Database error' });
         }
-        res.json(results);
+
+        res.status(200).json(result);
     });
 });
 
