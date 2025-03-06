@@ -170,19 +170,19 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
     });
 });
 
-app.get('/api/getUsers',(req, res) => {
-    const user_id = req.users.user_id;
+app.get('/api/admin/users', authenticateAdmin, (req, res) => {
+    db.query('SELECT * FROM users', (err, results) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json(results);
+    });
+});
 
-    const sql = `
-        SELECT  user_id, name, email FROM users
-    `;
-
-    pool.query(sql, [user_id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
-
-        res.status(200).json(result);
+// Route to remove user
+app.post('/api/admin/removeUser', authenticateAdmin, (req, res) => {
+    const { user_id } = req.body;
+    db.query('DELETE FROM users WHERE user_id = ?', [user_id], (err, results) => {
+        if (err) return res.status(500).json({ error: 'Failed to remove user' });
+        res.json({ message: 'User removed successfully' });
     });
 });
 
