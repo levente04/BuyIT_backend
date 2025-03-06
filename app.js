@@ -171,7 +171,7 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
 });
 
 app.get('/api/getUsers',(req, res) => {
-    const user_id = req.users.id;
+    const user_id = req.users.user_id;
 
     const sql = `
         SELECT  user_id, name, email FROM users
