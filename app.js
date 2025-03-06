@@ -189,7 +189,7 @@ app.get('/api/getUsers',(req, res) => {
 
 app.delete("/api/getUsers/:id", (req, res) => {
     const userId = req.params.id;
-    db.query("DELETE FROM users WHERE id = ?", [userId], (err, result) => {
+    pool.query("DELETE FROM users WHERE id = ?", [userId], (err, result) => {
         if (err) {
             res.status(500).json({ error: "Database error" });
             return;
