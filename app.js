@@ -187,19 +187,6 @@ app.get('/api/getUsers',(req, res) => {
 });
 
 
-app.delete("/api/getUsers/:id", (req, res) => {
-    const userId = req.params.id;
-    pool.query("DELETE FROM users WHERE id = ?", [userId], (err, result) => {
-        if (err) {
-            res.status(500).json({ error: "Database error" });
-            return;
-        }
-        res.json({ message: "User deleted successfully" });
-    });
-});
-
-
-
 app.get('/api/getRole', authenticateToken, (req, res) => {
 
     const userRole = req.users.role;
