@@ -170,7 +170,7 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
     });
 });
 
-app.get("/api/users", (req, res) => {
+app.get("/api/getUsers", (req, res) => {
     db.query("SELECT user_id, name, email FROM users", (err, results) => {
         if (err) {
             res.status(500).json({ error: "Database error" });
@@ -181,7 +181,7 @@ app.get("/api/users", (req, res) => {
 });
 
 
-app.delete("/api/users/:id", (req, res) => {
+app.delete("/api/getUsers/:id", (req, res) => {
     const userId = req.params.id;
     db.query("DELETE FROM users WHERE id = ?", [userId], (err, result) => {
         if (err) {
