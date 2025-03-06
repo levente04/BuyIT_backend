@@ -145,14 +145,27 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
 });
 
 app.get("/api/users", (req, res) => {
-    db.query("SELECT * FROM users", (err, results) => {
-      if (err) {
-        res.status(500).json({ error: "Database query error" });
-        return;
-      }
-      res.json(results);
+    db.query("SELECT user_id, name, email FROM users", (err, results) => {
+        if (err) {
+            res.status(500).json({ error: "Database error" });
+            return;
+        }
+        res.json(results);
     });
-  })
+});
+
+
+app.delete("/api/users/:id", (req, res) => {
+    const userId = req.params.id;
+    db.query("DELETE FROM users WHERE id = ?", [userId], (err, result) => {
+        if (err) {
+            res.status(500).json({ error: "Database error" });
+            return;
+        }
+        res.json({ message: "User deleted successfully" });
+    });
+});
+
 
 
 app.get('/api/getRole', authenticateToken, (req, res) => {
