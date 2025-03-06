@@ -131,11 +131,7 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
     WHERE products.itemName LIKE ?
        `;
        const values = [
-        `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
-        `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
-        `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
-        `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, 
-        `%${searchQuery}%`, `%${searchQuery}%`
+        `%${searchQuery}%`
     ];
     
     pool.query(sqlQuery, values, (err, results) => {
@@ -148,7 +144,15 @@ app.get('/api/search/:searchQuery', authenticateToken, (req, res) => {
     });
 });
 
-
+app.get("/api/users", (req, res) => {
+    db.query("SELECT * FROM users", (err, results) => {
+      if (err) {
+        res.status(500).json({ error: "Database query error" });
+        return;
+      }
+      res.json(results);
+    });
+  })
 
 
 app.get('/api/getRole', authenticateToken, (req, res) => {
