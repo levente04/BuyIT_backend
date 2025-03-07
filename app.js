@@ -562,26 +562,101 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 });
 
 
-app.post("/api/addAddress", (req, res) => {
-    console.log("Received data:", req.body);  // Log received data
+app.post('/api/placeOrder', authenticateToken, (req, res) => {
+    const user_id = req.users.id;
+    const { total_price, shipping_address } = req.body;
 
-    const { order_id, user_id, note, postcode, city, address, total_amount } = req.body;
-
-    if (!order_id || !user_id || !note || !postcode || !city || !address || !total_amount) {
-        console.error("Validation failed - missing field:", req.body);
-        return res.status(400).json({ error: "Tölts ki minden mezőt!" });
+    if (!total_price || !shipping_address) {
+        return res.status(400).json({ error: 'Missing order details' });
     }
 
-    const sql = "INSERT INTO orders(order_id, user_id, note, postcode, city, address, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?)";
-    const values = [order_id, user_id, note, postcode, city, address, total_amount];
-
-    pool.query(sql, values, (err, result) => {
+    pool.getConnection((err, connection) => {
         if (err) {
-            console.error("Database error:", err);
-            return res.status(500).json({ error: "Database error", details: err.message });
+            return res.status(500).json({ error: 'Database connection error' });
         }
 
-        res.json({ message: "Address saved successfully!", orderId: result.insertId });
+        connection.beginTransaction(err => {
+            if (err) {
+                connection.release();
+                return res.status(500).json({ error: 'Transaction error' });
+            }
+
+            // Insert into orders table
+            connection.query(
+                'INSERT INTO orders (user_id, total_price, shipping_address, status) VALUES (?, ?, ?, "pending")',
+                [user_id, total_price, shipping_address],
+                (err, orderResult) => {
+                    if (err) {
+                        return connection.rollback(() => {
+                            connection.release();
+                            res.status(500).json({ error: 'Error placing order' });
+                        });
+                    }
+
+                    const order_id = orderResult.insertId;
+
+                    // Get cart items for the user
+                    connection.query(
+                        'SELECT product_id, quantity, itemPrice FROM cart_items JOIN products ON cart_items.product_id = products.id WHERE cart_id = (SELECT cart_id FROM cart WHERE user_id = ?)',
+                        [user_id],
+                        (err, cartItems) => {
+                            if (err) {
+                                return connection.rollback(() => {
+                                    connection.release();
+                                    res.status(500).json({ error: 'Error fetching cart items' });
+                                });
+                            }
+
+                            if (cartItems.length === 0) {
+                                return connection.rollback(() => {
+                                    connection.release();
+                                    res.status(400).json({ error: 'Cart is empty' });
+                                });
+                            }
+
+                            // Insert cart items into order_items
+                            const orderItemsQuery = 'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ?';
+                            const orderItemsData = cartItems.map(item => [order_id, item.product_id, item.quantity, item.itemPrice]);
+
+                            connection.query(orderItemsQuery, [orderItemsData], (err) => {
+                                if (err) {
+                                    return connection.rollback(() => {
+                                        connection.release();
+                                        res.status(500).json({ error: 'Error saving order items' });
+                                    });
+                                }
+
+                                // Clear the user's cart
+                                connection.query(
+                                    'DELETE FROM cart_items WHERE cart_id = (SELECT cart_id FROM cart WHERE user_id = ?)',
+                                    [user_id],
+                                    (err) => {
+                                        if (err) {
+                                            return connection.rollback(() => {
+                                                connection.release();
+                                                res.status(500).json({ error: 'Error clearing cart' });
+                                            });
+                                        }
+
+                                        connection.commit(err => {
+                                            if (err) {
+                                                return connection.rollback(() => {
+                                                    connection.release();
+                                                    res.status(500).json({ error: 'Transaction commit failed' });
+                                                });
+                                            }
+
+                                            connection.release();
+                                            res.status(200).json({ message: 'Order placed successfully', order_id });
+                                        });
+                                    }
+                                );
+                            });
+                        }
+                    );
+                }
+            );
+        });
     });
 });
 
