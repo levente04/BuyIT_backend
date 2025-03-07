@@ -28,11 +28,11 @@ const PORT = process.env.PORT;
 const HOSTNAME = process.env.HOSTNAME;
 
 const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
+    host: process.env.pool_HOST,
+    port: process.env.pool_PORT,
+    user: process.env.pool_USER,
+    password: process.env.pool_PASSWORD,
+    database: process.env.pool_DATABASE,
     timezone: 'Z',
     waitForConnections: true,
     connectionLimit: 10,
@@ -180,7 +180,7 @@ app.get('/api/admin/users', (req, res) => {
 // Route to remove user
 app.post('/api/admin/removeUser', (req, res) => {
     const { user_id } = req.body;
-    db.query('DELETE FROM users WHERE user_id = ?', [user_id], (err, results) => {
+    pool.query('DELETE FROM users WHERE user_id = ?', [user_id], (err, results) => {
         if (err) return res.status(500).json({ error: 'Failed to remove user' });
         res.json({ message: 'User removed successfully' });
     });
@@ -561,104 +561,174 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
     });
 });
 
-
-app.post('/api/placeOrder', authenticateToken, (req, res) => {
-    const user_id = req.users.id;
-    const { total_price, shipping_address } = req.body;
-
-    if (!total_price || !shipping_address) {
-        return res.status(400).json({ error: 'Missing order details' });
-    }
-
-    pool.getConnection((err, connection) => {
+app.get('/api/orderGet', authenticateToken, (req, res) => {
+    const user_id = req.user.id;
+    const sql = 'SELECT users.name, orders.order_id, orders.order_date, orders.total_amount FROM users JOIN orders ON users.user_id = orders.user_id WHERE users.user_id = ?';
+    pool.query(sql, [user_id], (err, result) => {
         if (err) {
-            return res.status(500).json({ error: 'Database connection error' });
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
         }
 
-        connection.beginTransaction(err => {
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Nincs még rendelés' });
+        }
+
+        return res.status(200).json(result);
+    });
+})
+
+app.get('/api/orderedItems', authenticateToken, (req, res) => {
+    const order_id = req.params.order_id;
+    const sql = 'SELECT order_items.product_id, order_items.quantity, order_items.unit_price, products.itemName FROM order_items JOIN products ON order_items.product_id = products.product_id WHERE order_items.order_id = ?';
+
+    pool.query(sql, [order_id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
+
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Nincs még rendelt termék' });
+        }
+
+        return res.status(200).json(result);
+    });
+})
+
+app.post('/api/createOrder', authenticateToken, (req, res) => {
+    const user_id = req.user.id;
+    const cart_id = req.params.cart_id;
+    const { city, address, postcode, tel } = req.body;
+    let total_amount = 0;
+
+    const sqlSelectCartItems = `
+        SELECT 
+            cart_items.product_id,
+            products.itemName,
+            (products.itemPrice * cart_items.quantity) AS total_price,
+            products.itemPrice,
+            cart_items.quantity
+        FROM cart_items
+        JOIN products ON cart_items.product_id = products.product_id
+        WHERE cart_items.cart_id = ?`;
+
+    const sqlInsertOrder = 'INSERT INTO orders (user_id, order_date, city, address, postcode, tel, total_amount) VALUES (?, NOW(), ?, ?, ?, ?, 0)';
+    pool.query(sqlInsertOrder, [user_id, city, address, postcode, tel], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
+        const order_id = result.insertId;
+
+        pool.query(sqlSelectCartItems, [cart_id], (err, items) => {
             if (err) {
-                connection.release();
-                return res.status(500).json({ error: 'Transaction error' });
+                return res.status(500).json({ error: 'Hiba az SQL-ben 2' });
             }
 
-            // Insert into orders table
-            connection.query(
-                'INSERT INTO orders (user_id, total_price, shipping_address, status) VALUES (?, ?, ?, "pending")',
-                [user_id, total_price, shipping_address],
-                (err, orderResult) => {
+            if (items.length === 0) {
+                return res.status(404).json({ error: 'Nincs ilyen kosár' });
+            }
+
+            const sqlInsertOrderItems = 'INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ?';
+            const orderItemsData = items.map(item => [order_id, item.product_id, item.quantity, item.itemPrice]);
+            total_amount = items.reduce((sum, item) => sum + item.total_price, 0);
+
+            pool.query(sqlInsertOrderItems, [orderItemsData], (err) => {
+                if (err) {
+                    return res.status(500).json({ error: 'Hiba az SQL-ben 3' });
+                }
+
+                const sqlUpdateOrder = 'UPDATE orders SET total_amount = ? WHERE order_id = ?';
+                pool.query(sqlUpdateOrder, [total_amount, order_id], (err) => {
                     if (err) {
-                        return connection.rollback(() => {
-                            connection.release();
-                            res.status(500).json({ error: 'Error placing order' });
-                        });
+                        return res.status(500).json({ error: 'Hiba az SQL-ben 4' });
                     }
 
-                    const order_id = orderResult.insertId;
-
-                    // Get cart items for the user
-                    connection.query(
-                        'SELECT product_id, quantity, itemPrice FROM cart_items JOIN products ON cart_items.product_id = products.id WHERE cart_id = (SELECT cart_id FROM cart WHERE user_id = ?)',
-                        [user_id],
-                        (err, cartItems) => {
-                            if (err) {
-                                return connection.rollback(() => {
-                                    connection.release();
-                                    res.status(500).json({ error: 'Error fetching cart items' });
-                                });
-                            }
-
-                            if (cartItems.length === 0) {
-                                return connection.rollback(() => {
-                                    connection.release();
-                                    res.status(400).json({ error: 'Cart is empty' });
-                                });
-                            }
-
-                            // Insert cart items into order_items
-                            const orderItemsQuery = 'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ?';
-                            const orderItemsData = cartItems.map(item => [order_id, item.product_id, item.quantity, item.itemPrice]);
-
-                            connection.query(orderItemsQuery, [orderItemsData], (err) => {
-                                if (err) {
-                                    return connection.rollback(() => {
-                                        connection.release();
-                                        res.status(500).json({ error: 'Error saving order items' });
-                                    });
-                                }
-
-                                // Clear the user's cart
-                                connection.query(
-                                    'DELETE FROM cart_items WHERE cart_id = (SELECT cart_id FROM cart WHERE user_id = ?)',
-                                    [user_id],
-                                    (err) => {
-                                        if (err) {
-                                            return connection.rollback(() => {
-                                                connection.release();
-                                                res.status(500).json({ error: 'Error clearing cart' });
-                                            });
-                                        }
-
-                                        connection.commit(err => {
-                                            if (err) {
-                                                return connection.rollback(() => {
-                                                    connection.release();
-                                                    res.status(500).json({ error: 'Transaction commit failed' });
-                                                });
-                                            }
-
-                                            connection.release();
-                                            res.status(200).json({ message: 'Order placed successfully', order_id });
-                                        });
-                                    }
-                                );
-                            });
+                    const sqlDeleteCartItems = 'DELETE FROM cart_items WHERE cart_id = ?';
+                    pool.query(sqlDeleteCartItems, [cart_id], (err) => {
+                        if (err) {
+                            return res.status(500).json({ error: 'Hiba az SQL-ben 5' });
                         }
-                    );
-                }
-            );
+                        return res.status(200).json({ message: 'Rendelés sikeres' });
+                    });
+                });
+            });
         });
     });
-});
+})
+
+app.delete('/api/deleteOrder/:order_id', authenticateToken, (req, res) => {
+
+    const order_id = req.params.order_id;
+
+    const sqlDeleteOrderItems = 'DELETE FROM order_items WHERE order_id = ?';
+    const sqlDeleteOrder = 'DELETE FROM orders WHERE order_id = ?';
+
+    pool.query(sqlDeleteOrderItems, [order_id], (err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben, rendelési tételek' });
+        }
+
+        pool.query(sqlDeleteOrder, [order_id], (err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Hiba az SQL-ben' });
+            }
+            return res.status(200).json({ message: 'Rendelés törölve' });
+        });
+    });
+})
+
+app.get('/api/getAllOrders', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT 
+            orders.order_id,
+            orders.order_date,
+            orders.total_amount,
+            users.name,
+            orders.city,
+            orders.postcode,
+            orders.address,
+            orders.tel
+        FROM orders
+        JOIN users ON orders.user_id = users.user_id
+        ORDER BY orders.order_date DESC`;
+
+    pool.query(sql, (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
+
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Nincs rendelés' });
+        }
+
+        return res.status(200).json(result);
+    });
+})
+
+app.get('/api/getAllOrdersItems', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT 
+            order_items.order_id,
+            order_items.product_id,
+            order_items.quantity,
+            order_items.unit_price,
+            products.itemName
+        FROM order_items
+        JOIN products ON order_items.product_id = products.product_id
+        ORDER BY order_items.order_id`;
+
+    pool.query(sql, (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
+
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Nincs rendelési tétel' });
+        }
+
+        return res.status(200).json(result);
+    });
+})
+
 
 
 
