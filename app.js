@@ -562,7 +562,24 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 });
 
 
+app.post("/api/addAddress", (req, res) => {
+    const { user_id, note, postcode, city, address } = req.body;
+  
+    if (!user_id || !note || !postcode || !city || !address) {
+      return res.status(400).json({ error: "Tölts ki minden mezőt!" });
+    }
+  
+    const sql = "INSERT INTO orders(user_id, note, postcode, city, address) VALUES (?, ?, ?, ?, ?)";
+    const values = [user_id, note, postcode, city, address];
+  
+    pool.query(sql, values, (err, result) => {
+      if (err) {
+        console.error("Error saving address:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
 
+    });
+});
 
 app.listen(PORT, () => {
     console.log(`IP: https://${HOSTNAME}:${PORT}`);
