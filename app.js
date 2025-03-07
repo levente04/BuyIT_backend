@@ -561,21 +561,7 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
     });
 });
 
-app.get('/api/orderGet', authenticateToken, (req, res) => {
-    const user_id = req.user.id;
-    const sql = 'SELECT users.name, orders.order_id, orders.order_date, orders.total_amount FROM users JOIN orders ON users.user_id = orders.user_id WHERE users.user_id = ?';
-    pool.query(sql, [user_id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: 'Hiba az SQL-ben' });
-        }
 
-        if (result.length === 0) {
-            return res.status(404).json({ error: 'Nincs még rendelés' });
-        }
-
-        return res.status(200).json(result);
-    });
-})
 
 
 
