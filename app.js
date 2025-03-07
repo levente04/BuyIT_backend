@@ -563,25 +563,25 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 
 
 app.post("/api/addAddress", (req, res) => {
-    const { order_id, user_id, note, postcode, city, address } = req.body;
+    const { order_id, user_id, note, postcode, city, address, total_amount } = req.body;
 
-    if (!order_id || !user_id || !note || !postcode || !city || !address) {
-        console.error("Validation error:", req.body);
+    if (!order_id || !user_id || !note || !postcode || !city || !address || !total_amount) {
         return res.status(400).json({ error: "Tölts ki minden mezőt!" });
     }
 
-    const sql = "INSERT INTO orders(order_id, user_id, note, postcode, city, address) VALUES (?, ?, ?, ?, ?, ?)";
-    const values = [order_id, user_id, note, postcode, city, address];
+    const sql = "INSERT INTO orders(order_id, user_id, note, postcode, city, address, total_amount) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    const values = [order_id, user_id, note, postcode, city, address, total_amount];
 
     pool.query(sql, values, (err, result) => {
         if (err) {
-            console.error("Database error:", err);  // Log exact error
+            console.error("Database error:", err);
             return res.status(500).json({ error: "Database error", details: err.message });
         }
 
         res.json({ message: "Address saved successfully!", orderId: result.insertId });
     });
 });
+
 
 
 
