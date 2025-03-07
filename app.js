@@ -563,14 +563,14 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 
 
 app.post("/api/addAddress", (req, res) => {
-    const { user_id, note, postcode, city, address } = req.body;
+    const { order_id, user_id, note, postcode, city, address } = req.body;
   
-    if (!user_id || !note || !postcode || !city || !address) {
+    if (!order_id, !user_id || !note || !postcode || !city || !address) {
       return res.status(400).json({ error: "Tölts ki minden mezőt!" });
     }
   
-    const sql = "INSERT INTO orders(user_id, note, postcode, city, address) VALUES (?, ?, ?, ?, ?)";
-    const values = [user_id, note, postcode, city, address];
+    const sql = "INSERT INTO orders(order_id, user_id, note, postcode, city, address) VALUES (?, ?, ?, ?, ?, ?)";
+    const values = [order_id, user_id, note, postcode, city, address];
   
     pool.query(sql, values, (err, result) => {
       if (err) {
