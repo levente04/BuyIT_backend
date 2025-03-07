@@ -564,24 +564,25 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 
 app.post("/api/addAddress", (req, res) => {
     const { order_id, user_id, note, postcode, city, address } = req.body;
-  
+
     if (!order_id || !user_id || !note || !postcode || !city || !address) {
-      return res.status(400).json({ error: "Tölts ki minden mezőt!" });
+        console.error("Validation error:", req.body);
+        return res.status(400).json({ error: "Tölts ki minden mezőt!" });
     }
-  
+
     const sql = "INSERT INTO orders(order_id, user_id, note, postcode, city, address) VALUES (?, ?, ?, ?, ?, ?)";
     const values = [order_id, user_id, note, postcode, city, address];
-  
-    pool.query(sql, values, (err, result) => {
-      if (err) {
-        console.error("Error saving address:", err);
-        return res.status(500).json({ error: "Database error" });
-      }
 
-      // Send response after successful insertion
-      res.json({ message: "Address saved successfully!", orderId: result.insertId });
+    pool.query(sql, values, (err, result) => {
+        if (err) {
+            console.error("Database error:", err);  // Log exact error
+            return res.status(500).json({ error: "Database error", details: err.message });
+        }
+
+        res.json({ message: "Address saved successfully!", orderId: result.insertId });
     });
 });
+
 
 
 app.listen(PORT, () => {
