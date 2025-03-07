@@ -563,9 +563,12 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 
 
 app.post("/api/addAddress", (req, res) => {
+    console.log("Received data:", req.body);  // Log received data
+
     const { order_id, user_id, note, postcode, city, address, total_amount } = req.body;
 
     if (!order_id || !user_id || !note || !postcode || !city || !address || !total_amount) {
+        console.error("Validation failed - missing field:", req.body);
         return res.status(400).json({ error: "Tölts ki minden mezőt!" });
     }
 
@@ -581,6 +584,7 @@ app.post("/api/addAddress", (req, res) => {
         res.json({ message: "Address saved successfully!", orderId: result.insertId });
     });
 });
+
 
 
 
