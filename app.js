@@ -28,11 +28,11 @@ const PORT = process.env.PORT;
 const HOSTNAME = process.env.HOSTNAME;
 
 const pool = mysql.createPool({
-    host: process.env.pool_HOST,
-    port: process.env.pool_PORT,
-    user: process.env.pool_USER,
-    password: process.env.pool_PASSWORD,
-    database: process.env.pool_DATABASE,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
     timezone: 'Z',
     waitForConnections: true,
     connectionLimit: 10,
