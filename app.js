@@ -565,7 +565,7 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 app.post("/api/addAddress", (req, res) => {
     const { order_id, user_id, note, postcode, city, address } = req.body;
   
-    if (!order_id, !user_id || !note || !postcode || !city || !address) {
+    if (!order_id || !user_id || !note || !postcode || !city || !address) {
       return res.status(400).json({ error: "Tölts ki minden mezőt!" });
     }
   
@@ -578,8 +578,11 @@ app.post("/api/addAddress", (req, res) => {
         return res.status(500).json({ error: "Database error" });
       }
 
+      // Send response after successful insertion
+      res.json({ message: "Address saved successfully!", orderId: result.insertId });
     });
 });
+
 
 app.listen(PORT, () => {
     console.log(`IP: https://${HOSTNAME}:${PORT}`);
