@@ -584,7 +584,7 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 
 app.get('/api/orderedItems', authenticateToken, (req, res) => {
     const order_id = req.params.order_id;
-    const sql = 'SELECT order_items.product_id, order_items.quantity, order_items.unit_price, products.itemName FROM order_items JOIN products ON order_items.product_id = products.product_id WHERE order_items.order_id = ?';
+    const sql = 'SELECT order_items.product_id, order_items.quantity, products.itemName FROM order_items JOIN products ON order_items.product_id = products.product_id WHERE order_items.order_id = ?';
 
     pool.query(sql, [order_id], (err, result) => {
         if (err) {
@@ -657,7 +657,7 @@ app.post('/api/createOrder', authenticateToken, (req, res) => {
 
                 // Step 4: Insert order items
                 const sqlInsertOrderItems = `
-                    INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ?
+                    INSERT INTO order_items (order_id, product_id, quantity) VALUES ?
                 `;
 
                 const orderItemsData = cartItems.map(item => [order_id, item.product_id, item.quantity, item.itemPrice]);
@@ -739,7 +739,6 @@ app.get('/api/getAllOrdersItems', authenticateToken, (req, res) => {
             order_items.order_id,
             order_items.product_id,
             order_items.quantity,
-            order_items.unit_price,
             products.itemName
         FROM order_items
         JOIN products ON order_items.product_id = products.product_id
