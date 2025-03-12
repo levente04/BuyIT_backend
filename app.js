@@ -177,15 +177,36 @@ app.get('/api/admin/users', (req, res) => {
     });
 });
 
-// Route to remove user
 app.post('/api/admin/removeUser', (req, res) => {
     const { user_id } = req.body;
-    pool.query('DELETE FROM users WHERE user_id = ?', [user_id], (err, results) => {
-        if (err) return res.status(500).json({ error: 'Failed to remove user' });
-        res.json({ message: 'User removed successfully' });
+
+    if (!user_id) {
+        return res.status(400).json({ error: "Missing user_id" });
+    }
+
+    // First, delete records from dependent tables (like cart)
+    const sqlDeleteCart = 'DELETE FROM cart WHERE user_id = ?';
+    const sqlDeleteUser = 'DELETE FROM users WHERE user_id = ?';
+
+    pool.query(sqlDeleteCart, [user_id], (err) => {
+        if (err) {
+            console.error("SQL Error (Deleting cart):", err);
+            return res.status(500).json({ error: 'Failed to remove user cart' });
+        }
+
+        // After deleting related records, delete the user
+        pool.query(sqlDeleteUser, [user_id], (err, results) => {
+            if (err) {
+                console.error("SQL Error (Deleting user):", err);
+                return res.status(500).json({ error: 'Failed to remove user' });
+            }
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ error: "User not found" });
+            }
+            res.json({ message: 'User removed successfully' });
+        });
     });
 });
-
 
 app.get('/api/getRole', authenticateToken, (req, res) => {
 
