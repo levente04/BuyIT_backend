@@ -561,9 +561,14 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
     });
 });
 
-app.get('/api/orderedItems', authenticateToken, (req, res) => {
-    const order_id = req.params.order_id;
-    const sql = 'SELECT order_items.product_id, order_items.quantity, order_items.unit_price, products.itemName FROM order_items JOIN products ON order_items.product_id = products.product_id WHERE order_items.order_id = ?';
+// Fix route definition if order_id is part of URL
+app.get('/api/orderedItems/:order_id', authenticateToken, (req, res) => {
+    const order_id = req.params.order_id; // Corrected param access
+    const sql = `
+        SELECT order_items.product_id, order_items.quantity, order_items.unit_price, products.itemName 
+        FROM order_items 
+        JOIN products ON order_items.product_id = products.product_id 
+        WHERE order_items.order_id = ?`;
 
     pool.query(sql, [order_id], (err, result) => {
         if (err) {
@@ -576,16 +581,27 @@ app.get('/api/orderedItems', authenticateToken, (req, res) => {
 
         return res.status(200).json(result);
     });
-})
-
-const response = await fetch(`/api/createOrder/${cartId}`, {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify(formData)
 });
+
+// Fetch call inside an async function
+async function createOrder(cartId, formData, token) {
+    const response = await fetch(`/api/createOrder/${cartId}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+    });
+
+    return response.json();
+}
+
+// Call the function
+createOrder(cartId, formData, token)
+    .then(data => console.log(data))
+    .catch(error => console.error(error));
+
 
 
 app.delete('/api/deleteOrder/:order_id', authenticateToken, (req, res) => {
