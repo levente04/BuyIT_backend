@@ -177,11 +177,22 @@ app.get('/api/admin/users', (req, res) => {
     });
 });
 
-// Route to remove user
-app.post('/api/admin/removeUser', (req, res) => {
+app.post('/api/admin/removeUser', authenticateToken, (req, res) => {
     const { user_id } = req.body;
+    console.log("Received user_id:", user_id); // Debugging log
+    
+    if (!user_id) {
+        return res.status(400).json({ error: "Missing user_id" });
+    }
+
     pool.query('DELETE FROM users WHERE user_id = ?', [user_id], (err, results) => {
-        if (err) return res.status(500).json({ error: 'Failed to remove user' });
+        if (err) {
+            console.error("SQL Error:", err); // Log error
+            return res.status(500).json({ error: 'Failed to remove user' });
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
         res.json({ message: 'User removed successfully' });
     });
 });
