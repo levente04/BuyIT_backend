@@ -578,15 +578,66 @@ app.get('/api/orderedItems', authenticateToken, (req, res) => {
     });
 })
 
-const response = await fetch(`/api/createOrder/${cartId}`, {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify(formData)
-});
+app.post('/api/createOrder', authenticateToken, (req, res) => {
+    const user_id = req.user.id;
+    const cart_id = req.params.cart_id;
+    const { city, address, postcode, tel } = req.body;
+    let total_amount = 0;
 
+    const sqlSelectCartItems = `
+        SELECT 
+            cart_items.product_id,
+            products.itemName,
+            (products.itemPrice * cart_items.quantity) AS total_price,
+            products.itemPrice,
+            cart_items.quantity
+        FROM cart_items
+        JOIN products ON cart_items.product_id = products.product_id
+        WHERE cart_items.cart_id = ?`;
+
+    const sqlInsertOrder = 'INSERT INTO orders (user_id, order_date, city, address, postcode, tel, total_amount) VALUES (?, NOW(), ?, ?, ?, ?, 0)';
+    pool.query(sqlInsertOrder, [user_id, city, address, postcode, tel], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
+        const order_id = result.insertId;
+
+        pool.query(sqlSelectCartItems, [cart_id], (err, items) => {
+            if (err) {
+                return res.status(500).json({ error: 'Hiba az SQL-ben 2' });
+            }
+
+            if (items.length === 0) {
+                return res.status(404).json({ error: 'Nincs ilyen kosár' });
+            }
+
+            const sqlInsertOrderItems = 'INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ?';
+            const orderItemsData = items.map(item => [order_id, item.product_id, item.quantity, item.itemPrice]);
+            total_amount = items.reduce((sum, item) => sum + item.total_price, 0);
+
+            pool.query(sqlInsertOrderItems, [orderItemsData], (err) => {
+                if (err) {
+                    return res.status(500).json({ error: 'Hiba az SQL-ben 3' });
+                }
+
+                const sqlUpdateOrder = 'UPDATE orders SET total_amount = ? WHERE order_id = ?';
+                pool.query(sqlUpdateOrder, [total_amount, order_id], (err) => {
+                    if (err) {
+                        return res.status(500).json({ error: 'Hiba az SQL-ben 4' });
+                    }
+
+                    const sqlDeleteCartItems = 'DELETE FROM cart_items WHERE cart_id = ?';
+                    pool.query(sqlDeleteCartItems, [cart_id], (err) => {
+                        if (err) {
+                            return res.status(500).json({ error: 'Hiba az SQL-ben 5' });
+                        }
+                        return res.status(200).json({ message: 'Rendelés sikeres' });
+                    });
+                });
+            });
+        });
+    });
+})
 
 app.delete('/api/deleteOrder/:order_id', authenticateToken, (req, res) => {
 
@@ -677,7 +728,6 @@ app.get('/api/orderGet', authenticateToken, (req, res) => {
         return res.status(200).json(result);
     });
 })
-
 
 app.listen(PORT, () => {
     console.log(`IP: https://${HOSTNAME}:${PORT}`);
