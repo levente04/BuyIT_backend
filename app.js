@@ -594,7 +594,7 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
 
 app.get('/api/orderedItems', authenticateToken, (req, res) => {
     const order_id = req.params.order_id;
-    const sql = 'SELECT order_items.product_id, order_items.quantity, order_items.unit_price, products.itemName FROM order_items JOIN products ON order_items.product_id = products.product_id WHERE order_items.order_id = ?';
+    const sql = 'SELECT order_items.product_id, order_items.quantity, products.itemName FROM order_items JOIN products ON order_items.product_id = products.product_id WHERE order_items.order_id = ?';
 
     pool.query(sql, [order_id], (err, result) => {
         if (err) {
@@ -609,71 +609,90 @@ app.get('/api/orderedItems', authenticateToken, (req, res) => {
     });
 })
 
-app.post('/api/createOrder', authenticateToken, async (req, res) => {
+app.post('/api/createOrder', authenticateToken, (req, res) => {
     const { city, address, postcode, tel } = req.body;
-    const user_id = req.users.id; // Get user ID from the authenticated token
+    const user_id = req.users.id; // Get user ID from authenticated token
 
-    // Validate input data
     if (!city || !address || !postcode || !tel) {
         return res.status(400).json({ error: 'Minden mező kitöltése kötelező!' });
     }
 
-    try {
-        // Get the user's cart
-        const [cart] = await pool.query('SELECT cart_id FROM cart WHERE user_id = ?', [user_id]);
-        if (cart.length === 0) {
+    // Step 1: Get user's cart ID
+    pool.query('SELECT cart_id FROM cart WHERE user_id = ?', [user_id], (err, cartResult) => {
+        if (err) {
+            console.error("Error fetching cart:", err);
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
+        if (cartResult.length === 0) {
             return res.status(404).json({ error: 'Nincs aktív kosár!' });
         }
-        const cart_id = cart[0].cart_id;
+        const cart_id = cartResult[0].cart_id;
 
-        // Get cart items
-        const [cartItems] = await pool.query(`
+        // Step 2: Get cart items
+        const sqlCartItems = `
             SELECT ci.product_id, ci.quantity, p.itemPrice
             FROM cart_items ci
             JOIN products p ON ci.product_id = p.product_id
             WHERE ci.cart_id = ?
-        `, [cart_id]);
+        `;
 
-        if (cartItems.length === 0) {
-            return res.status(404).json({ error: 'A kosár üres!' });
-        }
+        pool.query(sqlCartItems, [cart_id], (err, cartItems) => {
+            if (err) {
+                console.error("Error fetching cart items:", err);
+                return res.status(500).json({ error: 'Hiba az SQL-ben' });
+            }
+            if (cartItems.length === 0) {
+                return res.status(404).json({ error: 'A kosár üres!' });
+            }
 
-        // Calculate total amount
-        let total_amount = 0;
-        cartItems.forEach(item => {
-            total_amount += item.quantity * item.itemPrice;
+            // Calculate total amount
+            let total_amount = 0;
+            cartItems.forEach(item => {
+                total_amount += item.quantity * item.itemPrice;
+            });
+
+            // Step 3: Insert order into the database
+            const sqlInsertOrder = `
+                INSERT INTO orders (user_id, order_date, city, address, postcode, tel, total_amount)
+                VALUES (?, NOW(), ?, ?, ?, ?, ?)
+            `;
+
+            pool.query(sqlInsertOrder, [user_id, city, address, postcode, tel, total_amount], (err, orderResult) => {
+                if (err) {
+                    console.error("Error inserting order:", err);
+                    return res.status(500).json({ error: 'Hiba történt a rendelés létrehozása során.' });
+                }
+
+                const order_id = orderResult.insertId;
+
+                // Step 4: Insert order items
+                const sqlInsertOrderItems = `
+                    INSERT INTO order_items (order_id, product_id, quantity) VALUES ?
+                `;
+
+                const orderItemsData = cartItems.map(item => [order_id, item.product_id, item.quantity, item.itemPrice]);
+
+                pool.query(sqlInsertOrderItems, [orderItemsData], (err) => {
+                    if (err) {
+                        console.error("Error inserting order items:", err);
+                        return res.status(500).json({ error: 'Hiba történt a rendelési tételek mentése során.' });
+                    }
+
+                    // Step 5: Clear the user's cart
+                    pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cart_id], (err) => {
+                        if (err) {
+                            console.error("Error clearing cart:", err);
+                            return res.status(500).json({ error: 'Hiba történt a kosár törlése során.' });
+                        }
+
+                        res.status(201).json({ message: 'Rendelés sikeresen létrehozva!' });
+                    });
+                });
+            });
         });
-
-        // Insert order into the database
-        const [orderResult] = await pool.query(`
-            INSERT INTO orders (user_id, order_date, city, address, postcode, tel, total_amount)
-            VALUES (?, NOW(), ?, ?, ?, ?, ?)
-        `, [user_id, city, address, postcode, tel, total_amount]);
-
-        const order_id = orderResult.insertId;
-
-        // Insert order items into the database
-        const orderItems = cartItems.map(item => [
-            order_id,
-            item.product_id,
-            item.quantity,
-            item.itemPrice
-        ]);
-
-        await pool.query(`
-            INSERT INTO order_items (order_id, product_id, quantity, unit_price)
-            VALUES ?
-        `, [orderItems]);
-
-        // Clear the user's cart
-        await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cart_id]);
-
-        res.status(201).json({ message: 'Rendelés sikeresen létrehozva!' });
-    } catch (error) {
-        console.error('Error creating order:', error);
-        res.status(500).json({ error: 'Hiba történt a rendelés létrehozása során.' });
-    }
+    });
 });
+
 
 app.delete('/api/deleteOrder/:order_id', authenticateToken, (req, res) => {
 
@@ -730,7 +749,6 @@ app.get('/api/getAllOrdersItems', authenticateToken, (req, res) => {
             order_items.order_id,
             order_items.product_id,
             order_items.quantity,
-            order_items.unit_price,
             products.itemName
         FROM order_items
         JOIN products ON order_items.product_id = products.product_id
