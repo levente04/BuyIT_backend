@@ -561,14 +561,9 @@ app.get('/api/cart/getItems', authenticateToken, (req, res) => {
     });
 });
 
-// Fix route definition if order_id is part of URL
-app.get('/api/orderedItems/:order_id', authenticateToken, (req, res) => {
-    const order_id = req.params.order_id; // Corrected param access
-    const sql = `
-        SELECT order_items.product_id, order_items.quantity, order_items.unit_price, products.itemName 
-        FROM order_items 
-        JOIN products ON order_items.product_id = products.product_id 
-        WHERE order_items.order_id = ?`;
+app.get('/api/orderedItems', authenticateToken, (req, res) => {
+    const order_id = req.params.order_id;
+    const sql = 'SELECT order_items.product_id, order_items.quantity, order_items.unit_price, products.itemName FROM order_items JOIN products ON order_items.product_id = products.product_id WHERE order_items.order_id = ?';
 
     pool.query(sql, [order_id], (err, result) => {
         if (err) {
@@ -581,74 +576,39 @@ app.get('/api/orderedItems/:order_id', authenticateToken, (req, res) => {
 
         return res.status(200).json(result);
     });
+})
+
+const response = await fetch(`/api/createOrder/${cartId}`, {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(formData)
 });
 
-// Fetch call inside an async function
-async function createOrder(cartId, formData, token) {
-    const response = await fetch(`/api/createOrder/${cartId}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-    });
 
-    return response.json();
-}
+app.delete('/api/deleteOrder/:order_id', authenticateToken, (req, res) => {
 
-// Function to create an order
-async function createOrder(cartId, formData, token) {
-    try {
-        const response = await fetch(`/api/createOrder/${cartId}`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify(formData)
-        });
-
-        if (!response.ok) {
-            throw new Error(`Error: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log("Order Created:", data);
-        return data;
-    } catch (error) {
-        console.error("Error creating order:", error);
-    }
-}
-
-// Example call (make sure cartId, formData, and token are properly set)
-createOrder(cartId, formData, token);
-
-// DELETE ORDER with Transactions (Ensures data consistency)
-app.delete('/api/deleteOrder/:order_id', authenticateToken, async (req, res) => {
     const order_id = req.params.order_id;
 
-    const connection = await pool.getConnection();
-    try {
-        await connection.beginTransaction();
+    const sqlDeleteOrderItems = 'DELETE FROM order_items WHERE order_id = ?';
+    const sqlDeleteOrder = 'DELETE FROM orders WHERE order_id = ?';
 
-        // Delete order items first
-        await connection.query('DELETE FROM order_items WHERE order_id = ?', [order_id]);
+    pool.query(sqlDeleteOrderItems, [order_id], (err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben, rendelési tételek' });
+        }
 
-        // Delete order itself
-        await connection.query('DELETE FROM orders WHERE order_id = ?', [order_id]);
+        pool.query(sqlDeleteOrder, [order_id], (err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Hiba az SQL-ben' });
+            }
+            return res.status(200).json({ message: 'Rendelés törölve' });
+        });
+    });
+})
 
-        await connection.commit();
-        res.status(200).json({ message: 'Rendelés törölve' });
-    } catch (err) {
-        await connection.rollback();
-        res.status(500).json({ error: 'Hiba az SQL-ben' });
-    } finally {
-        connection.release();
-    }
-});
-
-// GET ALL ORDERS
 app.get('/api/getAllOrders', authenticateToken, (req, res) => {
     const sql = `
         SELECT 
@@ -665,14 +625,18 @@ app.get('/api/getAllOrders', authenticateToken, (req, res) => {
         ORDER BY orders.order_date DESC`;
 
     pool.query(sql, (err, result) => {
-        if (err) return res.status(500).json({ error: 'Hiba az SQL-ben' });
-        if (result.length === 0) return res.status(404).json({ error: 'Nincs rendelés' });
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
 
-        res.status(200).json(result);
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Nincs rendelés' });
+        }
+
+        return res.status(200).json(result);
     });
-});
+})
 
-// GET ALL ORDER ITEMS
 app.get('/api/getAllOrdersItems', authenticateToken, (req, res) => {
     const sql = `
         SELECT 
@@ -686,36 +650,33 @@ app.get('/api/getAllOrdersItems', authenticateToken, (req, res) => {
         ORDER BY order_items.order_id`;
 
     pool.query(sql, (err, result) => {
-        if (err) return res.status(500).json({ error: 'Hiba az SQL-ben' });
-        if (result.length === 0) return res.status(404).json({ error: 'Nincs rendelési tétel' });
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
 
-        res.status(200).json(result);
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Nincs rendelési tétel' });
+        }
+
+        return res.status(200).json(result);
     });
-});
+})
 
-// GET ORDERS FOR LOGGED-IN USER
 app.get('/api/orderGet', authenticateToken, (req, res) => {
-    const user_id = req.user?.id; // Ensure req.user exists
-
-    if (!user_id) return res.status(401).json({ error: "User ID missing" });
-
-    const sql = `
-        SELECT 
-            users.name, 
-            orders.order_id, 
-            orders.order_date, 
-            orders.total_amount 
-        FROM users 
-        JOIN orders ON users.user_id = orders.user_id 
-        WHERE users.user_id = ?`;
-
+    const user_id = req.user.id;
+    const sql = 'SELECT users.name, orders.order_id, orders.order_date, orders.total_amount FROM users JOIN orders ON users.user_id = orders.user_id WHERE users.user_id = ?';
     pool.query(sql, [user_id], (err, result) => {
-        if (err) return res.status(500).json({ error: 'Hiba az SQL-ben' });
-        if (result.length === 0) return res.status(404).json({ error: 'Nincs még rendelés' });
+        if (err) {
+            return res.status(500).json({ error: 'Hiba az SQL-ben' });
+        }
 
-        res.status(200).json(result);
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Nincs még rendelés' });
+        }
+
+        return res.status(200).json(result);
     });
-});
+})
 
 
 app.listen(PORT, () => {
