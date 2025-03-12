@@ -184,26 +184,36 @@ app.post('/api/admin/removeUser', (req, res) => {
         return res.status(400).json({ error: "Missing user_id" });
     }
 
-    // First, delete records from dependent tables (like cart)
+    console.log("Received request to remove user with ID:", user_id);
+
+    const sqlDeleteCartItems = 'DELETE FROM cart_items WHERE cart_id IN (SELECT cart_id FROM cart WHERE user_id = ?)';
     const sqlDeleteCart = 'DELETE FROM cart WHERE user_id = ?';
     const sqlDeleteUser = 'DELETE FROM users WHERE user_id = ?';
 
-    pool.query(sqlDeleteCart, [user_id], (err) => {
+    pool.query(sqlDeleteCartItems, [user_id], (err) => {
         if (err) {
-            console.error("SQL Error (Deleting cart):", err);
-            return res.status(500).json({ error: 'Failed to remove user cart' });
+            console.error("SQL Error (Deleting cart items):", err);
+            return res.status(500).json({ error: 'Failed to remove cart items' });
         }
 
-        // After deleting related records, delete the user
-        pool.query(sqlDeleteUser, [user_id], (err, results) => {
+        pool.query(sqlDeleteCart, [user_id], (err) => {
             if (err) {
-                console.error("SQL Error (Deleting user):", err);
-                return res.status(500).json({ error: 'Failed to remove user' });
+                console.error("SQL Error (Deleting cart):", err);
+                return res.status(500).json({ error: 'Failed to remove cart' });
             }
-            if (results.affectedRows === 0) {
-                return res.status(404).json({ error: "User not found" });
-            }
-            res.json({ message: 'User removed successfully' });
+
+            pool.query(sqlDeleteUser, [user_id], (err, results) => {
+                if (err) {
+                    console.error("SQL Error (Deleting user):", err);
+                    return res.status(500).json({ error: 'Failed to remove user' });
+                }
+
+                if (results.affectedRows === 0) {
+                    return res.status(404).json({ error: "User not found" });
+                }
+
+                res.json({ message: 'User removed successfully' });
+            });
         });
     });
 });
