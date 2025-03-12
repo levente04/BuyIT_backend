@@ -657,12 +657,14 @@ app.post('/api/createOrder', authenticateToken, (req, res) => {
 
                 // Step 4: Insert order items
                 const sqlInsertOrderItems = `
-                    INSERT INTO order_items (order_id, product_id, quantity) VALUES ?
-                `;
-
-                const orderItemsData = cartItems.map(item => [order_id, item.product_id, item.quantity, item.itemPrice]);
-
-                pool.query(sqlInsertOrderItems, [orderItemsData], (err) => {
+                INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)
+            `;
+            
+            // Loop through each order item and insert it individually
+            const orderItemsData = cartItems.map(item => [order_id, item.product_id, item.quantity]);
+            
+            orderItemsData.forEach(orderItem => {
+                pool.query(sqlInsertOrderItems, orderItem, (err) => {
                     if (err) {
                         console.error("Error inserting order items:", err);
                         return res.status(500).json({ error: 'Hiba történt a rendelési tételek mentése során.' });
@@ -775,4 +777,5 @@ app.get('/api/orderGet', authenticateToken, (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`IP: https://${HOSTNAME}:${PORT}`);
+});
 });
