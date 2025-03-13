@@ -600,7 +600,7 @@ app.get('/api/orderedItems', authenticateToken, (req, res) => {
 })
 
 app.post('/api/createOrder', authenticateToken, (req, res) => {
-    const { city, address, postcode, tel } = req.body;
+    const { city, address, note, postcode, tel } = req.body;
     const user_id = req.users.id; // Get user ID from authenticated token
 
     if (!city || !address || !postcode || !tel) {
