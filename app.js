@@ -780,11 +780,7 @@ app.get('/api/getSummary', authenticateToken, (req, res) => {
     const user_id = req.users.id;
 
     const sql = `
-        SELECT oi.order_item_id, oi.product_id, oi.quantity, p.itemName, p.itemPrice, p.image
-        FROM order_items oi
-        JOIN orders o ON oi.order_id = o.order_id
-        JOIN products p ON oi.product_id = p.product_id
-        WHERE o.user_id = ?
+    SELECT oi.order_item_id, oi.product_id, oi.quantity, p.itemName, p.itemPrice, p.image FROM order_items oi JOIN orders o ON oi.order_id = o.order_id JOIN products p ON oi.product_id = p.product_id WHERE o.user_id = ? ORDER BY order_date DESC LIMIT 1
     `;
 
     pool.query(sql, [user_id], (err, result) => {
