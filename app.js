@@ -776,6 +776,27 @@ app.get('/api/orderGet', authenticateToken, (req, res) => {
     });
 })
 
+app.get('/api/getSummary', authenticateToken, (req, res) => {
+    const user_id = req.users.id;
+
+    const sql = `
+        SELECT oi.order_item_id, oi.product_id, oi.quantity, p.itemName, p.itemPrice, p.image
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.user_id = ?
+    `;
+
+    pool.query(sql, [user_id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
+        }
+
+        res.status(200).json(result);
+    });
+});
+
+
 app.listen(PORT, () => {
     console.log(`IP: https://${HOSTNAME}:${PORT}`);
 });
