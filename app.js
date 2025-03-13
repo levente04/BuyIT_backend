@@ -184,36 +184,26 @@ app.post('/api/admin/removeUser', (req, res) => {
         return res.status(400).json({ error: "Missing user_id" });
     }
 
-    console.log("Received request to remove user with ID:", user_id);
-
-    const sqlDeleteCartItems = 'DELETE FROM cart_items WHERE cart_id IN (SELECT cart_id FROM cart WHERE user_id = ?)';
+    // First, delete records from dependent tables (like cart)
     const sqlDeleteCart = 'DELETE FROM cart WHERE user_id = ?';
     const sqlDeleteUser = 'DELETE FROM users WHERE user_id = ?';
 
-    pool.query(sqlDeleteCartItems, [user_id], (err) => {
+    pool.query(sqlDeleteCart, [user_id], (err) => {
         if (err) {
-            console.error("SQL Error (Deleting cart items):", err);
-            return res.status(500).json({ error: 'Failed to remove cart items' });
+            console.error("SQL Error (Deleting cart):", err);
+            return res.status(500).json({ error: 'Failed to remove user cart' });
         }
 
-        pool.query(sqlDeleteCart, [user_id], (err) => {
+        // After deleting related records, delete the user
+        pool.query(sqlDeleteUser, [user_id], (err, results) => {
             if (err) {
-                console.error("SQL Error (Deleting cart):", err);
-                return res.status(500).json({ error: 'Failed to remove cart' });
+                console.error("SQL Error (Deleting user):", err);
+                return res.status(500).json({ error: 'Failed to remove user' });
             }
-
-            pool.query(sqlDeleteUser, [user_id], (err, results) => {
-                if (err) {
-                    console.error("SQL Error (Deleting user):", err);
-                    return res.status(500).json({ error: 'Failed to remove user' });
-                }
-
-                if (results.affectedRows === 0) {
-                    return res.status(404).json({ error: "User not found" });
-                }
-
-                res.json({ message: 'User removed successfully' });
-            });
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ error: "User not found" });
+            }
+            res.json({ message: 'User removed successfully' });
         });
     });
 });
@@ -667,16 +657,19 @@ app.post('/api/createOrder', authenticateToken, (req, res) => {
 
                 // Step 4: Insert order items
                 const sqlInsertOrderItems = `
-                    INSERT INTO order_items (order_id, product_id, quantity) VALUES ?
-                `;
+    INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)
+`;
 
-                const orderItemsData = cartItems.map(item => [order_id, item.product_id, item.quantity, item.itemPrice]);
+// Loop through each order item and insert it individually
+const orderItemsData = cartItems.map(item => [order_id, item.product_id, item.quantity]);
 
-                pool.query(sqlInsertOrderItems, [orderItemsData], (err) => {
-                    if (err) {
-                        console.error("Error inserting order items:", err);
-                        return res.status(500).json({ error: 'Hiba történt a rendelési tételek mentése során.' });
-                    }
+orderItemsData.forEach(orderItem => {
+    pool.query(sqlInsertOrderItems, orderItem, (err) => {
+        if (err) {
+            console.error("Error inserting order items:", err);
+            return res.status(500).json({ error: 'Hiba történt a rendelési tételek mentése során.' });
+        }
+    });
 
                     // Step 5: Clear the user's cart
                     pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cart_id], (err) => {
