@@ -643,8 +643,8 @@ app.post('/api/createOrder', authenticateToken, (req, res) => {
 
             // Step 3: Insert order into the database
             const sqlInsertOrder = `
-                INSERT INTO orders (user_id, order_date, city, address, postcode, tel, total_amount)
-                VALUES (?, NOW(), ?, ?, ?, ?, ?)
+                INSERT INTO orders (user_id, order_date, city, address, note,  postcode, tel, total_amount)
+                VALUES (?, NOW(), ?, ?, ?, ?, ?, ?)
             `;
 
             pool.query(sqlInsertOrder, [user_id, city, address, postcode, tel, total_amount], (err, orderResult) => {
