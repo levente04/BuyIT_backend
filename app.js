@@ -776,17 +776,7 @@ app.get('/api/orderGet', authenticateToken, (req, res) => {
     });
 })
 
-app.get('/api/getSummary', authenticateToken, (req, res) => {
-    const user_id = req.user.id;
-    const sql = 'SELECT orders.total_amount, orders.city, orders.address, orders.postcode FROM orders WHERE user_id = ? ORDER BY order_date DESC LIMIT 1';
-    pool.query(sql, [user_id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: 'Hiba az SQL-ben' });
-        }
 
-        return res.status(200).json(result);
-    });
-})
 
 app.listen(PORT, () => {
     console.log(`IP: https://${HOSTNAME}:${PORT}`);
