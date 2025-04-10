@@ -600,7 +600,7 @@ app.get('/api/orderedItems', authenticateToken, (req, res) => {
 })
 
 app.post('/api/createOrder', authenticateToken, (req, res) => {
-    const { city, address, postcode, tel } = req.body;
+    const { city, address, note, postcode, tel } = req.body;
     const user_id = req.users.id; // Get user ID from authenticated token
 
     if (!city || !address || !postcode || !tel) {
@@ -643,11 +643,11 @@ app.post('/api/createOrder', authenticateToken, (req, res) => {
 
             // Step 3: Insert order into the database
             const sqlInsertOrder = `
-                INSERT INTO orders (user_id, order_date, city, address, postcode, tel, total_amount)
-                VALUES (?, NOW(), ?, ?, ?, ?, ?)
+                INSERT INTO orders (user_id, order_date, city, address, note, postcode, tel, total_amount)
+                VALUES (?, NOW(), ?, ?, ?, ?, ?, ?)
             `;
 
-            pool.query(sqlInsertOrder, [user_id, city, address, postcode, tel, total_amount], (err, orderResult) => {
+            pool.query(sqlInsertOrder, [user_id, city, address, note, postcode, tel, total_amount], (err, orderResult) => {
                 if (err) {
                     console.error("Error inserting order:", err);
                     return res.status(500).json({ error: 'Hiba történt a rendelés létrehozása során.' });
